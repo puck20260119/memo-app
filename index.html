@@ -2,10 +2,12 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>クラウドメモアプリ</title>
   <style>
-    body { font-family: sans-serif; max-width: 600px; margin: 30px auto; }
-    textarea { width: 100%; height: 120px; }
+    body { font-family: sans-serif; max-width: 600px; margin: 30px auto; padding: 10px; }
+    textarea { width: 100%; height: 120px; margin-top: 8px; }
+    input, select, button { margin-top: 6px; padding: 6px; }
     li { margin-bottom: 8px; }
     .delete-btn { font-size: 10px; margin-left: 10px; }
   </style>
@@ -42,29 +44,41 @@ import {
   onSnapshot,
   updateDoc
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import { getAuth, signInAnonymously }
+  from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyABRqabTZH_2lxSgPK8zfF_IY0MDXRvHOw",
-    authDomain: "memo-sync-65e5f.firebaseapp.com",
-    projectId: "memo-sync-65e5f",
-    storageBucket: "memo-sync-65e5f.firebasestorage.app",
-    messagingSenderId: "1044879277772",
-    appId: "1:1044879277772:web:60440696265ebb11efcc69"
+  authDomain: "memo-sync-65e5f.firebaseapp.com",
+  projectId: "memo-sync-65e5f",
+  storageBucket: "memo-sync-65e5f.firebasestorage.app",
+  messagingSenderId: "1044879277772",
+  appId: "1:1044879277772:web:60440696265ebb11efcc69"
 };
 
+// 🔥 Firebase初期化
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
+
+// 🔐 匿名ログイン（セキュリティ用）
+const auth = getAuth(app);
+signInAnonymously(auth)
+  .then(() => console.log("匿名ログイン成功"))
+  .catch((error) => console.error("ログイン失敗", error));
+
 const memosRef = collection(db, "memos");
 
 let memos = [];
 let currentFilter = "all";
 let editingId = null;
 
+// フィルタ
 window.setFilter = (f) => {
   currentFilter = f;
   render();
 };
 
+// 保存
 window.saveMemo = async () => {
   const theme = document.getElementById("theme").value.trim();
   const text = document.getElementById("text").value;
@@ -81,12 +95,14 @@ window.saveMemo = async () => {
   clearEditor();
 };
 
+// 入力クリア
 function clearEditor() {
   document.getElementById("theme").value = "";
   document.getElementById("text").value = "";
   document.getElementById("status").value = "draft";
 }
 
+// 一覧表示
 function render() {
   const list = document.getElementById("memoList");
   list.innerHTML = "";
@@ -114,6 +130,7 @@ function render() {
   });
 }
 
+// 編集読み込み
 function loadMemo(memo) {
   document.getElementById("theme").value = memo.theme;
   document.getElementById("text").value = memo.text;
@@ -121,7 +138,7 @@ function loadMemo(memo) {
   editingId = memo.id;
 }
 
-// 🔥 リアルタイム同期
+// 🔄 リアルタイム同期
 onSnapshot(memosRef, (snapshot) => {
   memos = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
   render();
