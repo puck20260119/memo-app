@@ -1,42 +1,133 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="UTF-8">
-  <title>メモアプリ</title>
-  <link rel="stylesheet" href="style.css">
+  <meta charset="UTF-8" />
+  <title>クラウドメモアプリ</title>
   <style>
-  .delete-btn {
-    font-size: 10px;
-    padding: 2px 6px;
-    cursor: pointer;
-  }
-</style>
-
+    body { font-family: sans-serif; max-width: 600px; margin: 30px auto; }
+    textarea { width: 100%; height: 120px; }
+    li { margin-bottom: 8px; }
+    .delete-btn { font-size: 10px; margin-left: 10px; }
+  </style>
 </head>
-
-<script src="script.js"></script>
 <body>
 
-  <h1>はじめてのメモアプリ</h1>
-  <div id="filters">
-  <button onclick="setFilter('all')">すべて</button>
-  <button onclick="setFilter('draft')">下書き</button>
-  <button onclick="setFilter('published')">公開済み</button>
-</div>
+<h1>☁ クラウドメモ</h1>
 
-  <ul id="memoList"></ul>
-<input id="theme" placeholder="テーマ名（例：仕事・読書）">
-
+<input id="theme" placeholder="テーマ">
 <select id="status">
   <option value="draft">下書き</option>
-  <option value="published">note公開済み</option>
+  <option value="published">公開済み</option>
 </select>
-
-<textarea placeholder="ここに文字を書いてください"></textarea>
+<textarea id="text" placeholder="ここにメモ"></textarea>
 <button onclick="saveMemo()">保存</button>
-<button onclick="exportMemos()">📤 書き出し</button>
-<input type="file" id="importFile" accept=".json" />
-<button onclick="importMemos()">📥 読み込み</button>
+
+<hr>
+
+<button onclick="setFilter('all')">すべて</button>
+<button onclick="setFilter('draft')">下書き</button>
+<button onclick="setFilter('published')">公開済み</button>
+
+<ul id="memoList"></ul>
+
+<!-- 🔥 Firebase -->
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+import {
+  getFirestore,
+  collection,
+  addDoc,
+  deleteDoc,
+  doc,
+  onSnapshot,
+  updateDoc
+} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyABRqabTZH_2lxSgPK8zfF_IY0MDXRvHOw",
+    authDomain: "memo-sync-65e5f.firebaseapp.com",
+    projectId: "memo-sync-65e5f",
+    storageBucket: "memo-sync-65e5f.firebasestorage.app",
+    messagingSenderId: "1044879277772",
+    appId: "1:1044879277772:web:60440696265ebb11efcc69"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+const memosRef = collection(db, "memos");
+
+let memos = [];
+let currentFilter = "all";
+let editingId = null;
+
+window.setFilter = (f) => {
+  currentFilter = f;
+  render();
+};
+
+window.saveMemo = async () => {
+  const theme = document.getElementById("theme").value.trim();
+  const text = document.getElementById("text").value;
+  const status = document.getElementById("status").value;
+  if (!theme) return;
+
+  if (editingId) {
+    await updateDoc(doc(db, "memos", editingId), { theme, text, status });
+    editingId = null;
+  } else {
+    await addDoc(memosRef, { theme, text, status, created: Date.now() });
+  }
+
+  clearEditor();
+};
+
+function clearEditor() {
+  document.getElementById("theme").value = "";
+  document.getElementById("text").value = "";
+  document.getElementById("status").value = "draft";
+}
+
+function render() {
+  const list = document.getElementById("memoList");
+  list.innerHTML = "";
+
+  memos.forEach((memo) => {
+    if (currentFilter !== "all" && memo.status !== currentFilter) return;
+
+    const li = document.createElement("li");
+
+    const span = document.createElement("span");
+    span.textContent = `${memo.status === "published" ? "🌍" : "📝"} ${memo.theme}`;
+    span.style.cursor = "pointer";
+    span.onclick = () => loadMemo(memo);
+
+    const del = document.createElement("button");
+    del.textContent = "🗑";
+    del.className = "delete-btn";
+    del.onclick = async () => {
+      await deleteDoc(doc(db, "memos", memo.id));
+    };
+
+    li.appendChild(span);
+    li.appendChild(del);
+    list.appendChild(li);
+  });
+}
+
+function loadMemo(memo) {
+  document.getElementById("theme").value = memo.theme;
+  document.getElementById("text").value = memo.text;
+  document.getElementById("status").value = memo.status;
+  editingId = memo.id;
+}
+
+// 🔥 リアルタイム同期
+onSnapshot(memosRef, (snapshot) => {
+  memos = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+  render();
+});
+</script>
 
 </body>
 </html>
+
