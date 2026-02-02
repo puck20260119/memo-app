@@ -32,7 +32,6 @@
 
 <ul id="memoList"></ul>
 
-<!-- 🔥 Firebase -->
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 import {
@@ -44,7 +43,7 @@ import {
   onSnapshot,
   updateDoc
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-import { getAuth, signInAnonymously }
+import { getAuth, signInAnonymously, onAuthStateChanged }
   from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
 const firebaseConfig = {
@@ -56,23 +55,36 @@ const firebaseConfig = {
   appId: "1:1044879277772:web:60440696265ebb11efcc69"
 };
 
-// 🔥 Firebase初期化
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
-
-// 🔐 匿名ログイン（セキュリティ用）
 const auth = getAuth(app);
-signInAnonymously(auth)
-  .then(() => console.log("匿名ログイン成功"))
-  .catch((error) => console.error("ログイン失敗", error));
-
-const memosRef = collection(db, "memos");
 
 let memos = [];
 let currentFilter = "all";
 let editingId = null;
+let memosRef;
 
-// フィルタ
+// 🔐 ログイン状態が確立してからFirestore開始
+onAuthStateChanged(auth, (user) => {
+  if (user) {
+    console.log("ログイン完了");
+    startFirestore();
+  }
+});
+
+// 匿名ログイン開始
+signInAnonymously(auth).catch(console.error);
+
+function startFirestore() {
+  memosRef = collection(db, "memos");
+
+  onSnapshot(memosRef, (snapshot) => {
+    memos = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    render();
+  });
+}
+
+// フィルター
 window.setFilter = (f) => {
   currentFilter = f;
   render();
@@ -95,14 +107,14 @@ window.saveMemo = async () => {
   clearEditor();
 };
 
-// 入力クリア
+// 入力リセット
 function clearEditor() {
   document.getElementById("theme").value = "";
   document.getElementById("text").value = "";
   document.getElementById("status").value = "draft";
 }
 
-// 一覧表示
+// 表示
 function render() {
   const list = document.getElementById("memoList");
   list.innerHTML = "";
@@ -130,19 +142,13 @@ function render() {
   });
 }
 
-// 編集読み込み
+// 編集ロード
 function loadMemo(memo) {
   document.getElementById("theme").value = memo.theme;
   document.getElementById("text").value = memo.text;
   document.getElementById("status").value = memo.status;
   editingId = memo.id;
 }
-
-// 🔄 リアルタイム同期
-onSnapshot(memosRef, (snapshot) => {
-  memos = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-  render();
-});
 </script>
 
 </body>
