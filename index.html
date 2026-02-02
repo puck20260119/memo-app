@@ -10,11 +10,19 @@
     input, select, button { margin-top: 6px; padding: 6px; }
     li { margin-bottom: 8px; }
     .delete-btn { font-size: 10px; margin-left: 10px; }
+    #loginBtn { background:#4285F4; color:white; border:none; }
+    #logoutBtn { background:#aaa; color:white; border:none; margin-left:6px;}
   </style>
 </head>
 <body>
 
 <h1>☁ クラウドメモ</h1>
+
+<button id="loginBtn">Googleでログイン</button>
+<button id="logoutBtn" style="display:none;">ログアウト</button>
+<p id="userInfo"></p>
+
+<hr>
 
 <input id="theme" placeholder="テーマ">
 <select id="status">
@@ -35,20 +43,12 @@
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 import {
-  getFirestore,
-  collection,
-  addDoc,
-  deleteDoc,
-  doc,
-  onSnapshot,
-  updateDoc,
-  query,
-  where
+  getFirestore, collection, addDoc, deleteDoc, doc,
+  onSnapshot, updateDoc, query, where
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 import {
-  getAuth,
-  signInAnonymously,
-  onAuthStateChanged
+  getAuth, GoogleAuthProvider, signInWithPopup,
+  onAuthStateChanged, signOut
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
 const firebaseConfig = {
@@ -63,26 +63,46 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const auth = getAuth(app);
+const provider = new GoogleAuthProvider();
 
-let memosRef;
 let memos = [];
-let currentFilter = "all";
+let memosRef = null;
 let editingId = null;
+let currentFilter = "all";
 
-// 🔐 匿名ログイン
-signInAnonymously(auth).catch(console.error);
+// 🔐 ログイン
+document.getElementById("loginBtn").onclick = () => {
+  signInWithPopup(auth, provider);
+};
 
-// 🔑 ログイン後に「自分のメモだけ」取得
+// 🚪 ログアウト
+document.getElementById("logoutBtn").onclick = () => {
+  signOut(auth);
+};
+
+// 🔄 ログイン状態監視
 onAuthStateChanged(auth, (user) => {
-  if (!user) return;
+  if (user) {
+    document.getElementById("userInfo").textContent = "ログイン中: " + user.email;
+    document.getElementById("loginBtn").style.display = "none";
+    document.getElementById("logoutBtn").style.display = "inline-block";
 
-  const q = query(collection(db, "memos"), where("owner", "==", user.uid));
-  memosRef = q;
+    // 🔥 自分のメモだけ取得
+    const q = query(collection(db, "memos"), where("owner", "==", user.uid));
+    memosRef = q;
 
-  onSnapshot(memosRef, (snapshot) => {
-    memos = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    onSnapshot(memosRef, (snapshot) => {
+      memos = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      render();
+    });
+
+  } else {
+    document.getElementById("userInfo").textContent = "";
+    document.getElementById("loginBtn").style.display = "inline-block";
+    document.getElementById("logoutBtn").style.display = "none";
+    memos = [];
     render();
-  });
+  }
 });
 
 // フィルタ
@@ -91,10 +111,9 @@ window.setFilter = (f) => {
   render();
 };
 
-// 💾 保存（owner付き）
+// 保存
 window.saveMemo = async () => {
-  const user = auth.currentUser;
-  if (!user) return alert("ログイン待機中…");
+  if (!auth.currentUser) return alert("ログインしてください");
 
   const theme = document.getElementById("theme").value.trim();
   const text = document.getElementById("text").value;
@@ -110,19 +129,19 @@ window.saveMemo = async () => {
       text,
       status,
       created: Date.now(),
-      owner: user.uid   // 🔥 持ち主ID
+      owner: auth.currentUser.uid // 🔐 所有者
     });
   }
 
   clearEditor();
 };
 
-function clearEditor() {
-  document.getElementById("theme").value = "";
-  document.getElementById("text").value = "";
-  document.getElementById("status").value = "draft";
+// 削除
+async function deleteMemo(id) {
+  await deleteDoc(doc(db, "memos", id));
 }
 
+// 描画
 function render() {
   const list = document.getElementById("memoList");
   list.innerHTML = "";
@@ -140,9 +159,7 @@ function render() {
     const del = document.createElement("button");
     del.textContent = "🗑";
     del.className = "delete-btn";
-    del.onclick = async () => {
-      await deleteDoc(doc(db, "memos", memo.id));
-    };
+    del.onclick = () => deleteMemo(memo.id);
 
     li.appendChild(span);
     li.appendChild(del);
@@ -150,14 +167,20 @@ function render() {
   });
 }
 
+// 編集読み込み
 function loadMemo(memo) {
   document.getElementById("theme").value = memo.theme;
   document.getElementById("text").value = memo.text;
   document.getElementById("status").value = memo.status;
   editingId = memo.id;
 }
+
+function clearEditor() {
+  document.getElementById("theme").value = "";
+  document.getElementById("text").value = "";
+  document.getElementById("status").value = "draft";
+}
 </script>
 
 </body>
 </html>
-
