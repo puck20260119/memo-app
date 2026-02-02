@@ -41,7 +41,9 @@ import {
   deleteDoc,
   doc,
   onSnapshot,
-  updateDoc
+  updateDoc,
+  query,
+  where
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 import {
   getAuth,
@@ -51,12 +53,13 @@ import {
 
 const firebaseConfig = {
   apiKey: "AIzaSyABRqabTZH_2lxSgPK8zfF_IY0MDXRvHOw",
-    authDomain: "memo-sync-65e5f.firebaseapp.com",
-    projectId: "memo-sync-65e5f",
-    storageBucket: "memo-sync-65e5f.firebasestorage.app",
-    messagingSenderId: "1044879277772",
-    appId: "1:1044879277772:web:60440696265ebb11efcc69"
-  };
+  authDomain: "memo-sync-65e5f.firebaseapp.com",
+  projectId: "memo-sync-65e5f",
+  storageBucket: "memo-sync-65e5f.firebasestorage.app",
+  messagingSenderId: "1044879277772",
+  appId: "1:1044879277772:web:60440696265ebb11efcc69"
+};
+
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const auth = getAuth(app);
@@ -66,16 +69,15 @@ let memos = [];
 let currentFilter = "all";
 let editingId = null;
 
-// 🔐 まず匿名ログイン
+// 🔐 匿名ログイン
 signInAnonymously(auth).catch(console.error);
 
-// ✅ ログイン完了を待ってからFirestore接続
+// 🔑 ログイン後に「自分のメモだけ」取得
 onAuthStateChanged(auth, (user) => {
   if (!user) return;
 
-  console.log("ログイン完了:", user.uid);
-
-  memosRef = collection(db, "memos");
+  const q = query(collection(db, "memos"), where("owner", "==", user.uid));
+  memosRef = q;
 
   onSnapshot(memosRef, (snapshot) => {
     memos = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
@@ -89,9 +91,10 @@ window.setFilter = (f) => {
   render();
 };
 
-// 保存
+// 💾 保存（owner付き）
 window.saveMemo = async () => {
-  if (!memosRef) return alert("まだ接続中…少し待ってね");
+  const user = auth.currentUser;
+  if (!user) return alert("ログイン待機中…");
 
   const theme = document.getElementById("theme").value.trim();
   const text = document.getElementById("text").value;
@@ -102,7 +105,13 @@ window.saveMemo = async () => {
     await updateDoc(doc(db, "memos", editingId), { theme, text, status });
     editingId = null;
   } else {
-    await addDoc(memosRef, { theme, text, status, created: Date.now() });
+    await addDoc(collection(db, "memos"), {
+      theme,
+      text,
+      status,
+      created: Date.now(),
+      owner: user.uid   // 🔥 持ち主ID
+    });
   }
 
   clearEditor();
@@ -148,7 +157,6 @@ function loadMemo(memo) {
   editingId = memo.id;
 }
 </script>
-
 
 </body>
 </html>
