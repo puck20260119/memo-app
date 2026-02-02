@@ -51,13 +51,12 @@ import {
 
 const firebaseConfig = {
   apiKey: "AIzaSyABRqabTZH_2lxSgPK8zfF_IY0MDXRvHOw",
-  authDomain: "memo-sync-65e5f.firebaseapp.com",
-  projectId: "memo-sync-65e5f",
-  storageBucket: "memo-sync-65e5f.firebasestorage.app",
-  messagingSenderId: "1044879277772",
-  appId: "1:1044879277772:web:60440696265ebb11efcc69"
-};
-
+    authDomain: "memo-sync-65e5f.firebaseapp.com",
+    projectId: "memo-sync-65e5f",
+    storageBucket: "memo-sync-65e5f.firebasestorage.app",
+    messagingSenderId: "1044879277772",
+    appId: "1:1044879277772:web:60440696265ebb11efcc69"
+  };
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const auth = getAuth(app);
