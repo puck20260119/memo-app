@@ -43,8 +43,11 @@ import {
   onSnapshot,
   updateDoc
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-import { getAuth, signInAnonymously, onAuthStateChanged }
-  from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+import {
+  getAuth,
+  signInAnonymously,
+  onAuthStateChanged
+} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyABRqabTZH_2lxSgPK8zfF_IY0MDXRvHOw",
@@ -59,32 +62,29 @@ const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const auth = getAuth(app);
 
+let memosRef;
 let memos = [];
 let currentFilter = "all";
 let editingId = null;
-let memosRef;
 
-// 🔐 ログイン状態が確立してからFirestore開始
-onAuthStateChanged(auth, (user) => {
-  if (user) {
-    console.log("ログイン完了");
-    startFirestore();
-  }
-});
-
-// 匿名ログイン開始
+// 🔐 まず匿名ログイン
 signInAnonymously(auth).catch(console.error);
 
-function startFirestore() {
+// ✅ ログイン完了を待ってからFirestore接続
+onAuthStateChanged(auth, (user) => {
+  if (!user) return;
+
+  console.log("ログイン完了:", user.uid);
+
   memosRef = collection(db, "memos");
 
   onSnapshot(memosRef, (snapshot) => {
     memos = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
     render();
   });
-}
+});
 
-// フィルター
+// フィルタ
 window.setFilter = (f) => {
   currentFilter = f;
   render();
@@ -92,6 +92,8 @@ window.setFilter = (f) => {
 
 // 保存
 window.saveMemo = async () => {
+  if (!memosRef) return alert("まだ接続中…少し待ってね");
+
   const theme = document.getElementById("theme").value.trim();
   const text = document.getElementById("text").value;
   const status = document.getElementById("status").value;
@@ -107,14 +109,12 @@ window.saveMemo = async () => {
   clearEditor();
 };
 
-// 入力リセット
 function clearEditor() {
   document.getElementById("theme").value = "";
   document.getElementById("text").value = "";
   document.getElementById("status").value = "draft";
 }
 
-// 表示
 function render() {
   const list = document.getElementById("memoList");
   list.innerHTML = "";
@@ -142,7 +142,6 @@ function render() {
   });
 }
 
-// 編集ロード
 function loadMemo(memo) {
   document.getElementById("theme").value = memo.theme;
   document.getElementById("text").value = memo.text;
@@ -150,6 +149,7 @@ function loadMemo(memo) {
   editingId = memo.id;
 }
 </script>
+
 
 </body>
 </html>
