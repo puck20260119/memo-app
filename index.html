@@ -5,17 +5,16 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>クラウドメモ</title>
 
-  <!-- 🌟 アプリ化に必要 -->
+  <!-- PWA用 -->
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#4CAF50">
-  <link rel="apple-touch-icon" href="icon-192.png">
 
   <style>
     body { font-family: sans-serif; max-width: 600px; margin: 30px auto; padding: 10px; }
     textarea { width: 100%; height: 120px; margin-top: 8px; }
-    input, select, button { margin-top: 6px; padding: 8px; font-size: 16px; }
+    input, select, button { margin-top: 6px; padding: 6px; }
     li { margin-bottom: 8px; }
-    .delete-btn { font-size: 12px; margin-left: 10px; }
+    .delete-btn { font-size: 10px; margin-left: 10px; }
   </style>
 </head>
 <body>
@@ -68,15 +67,20 @@ const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const auth = getAuth(app);
 
-let memosRef;
+let memosRef = null;
 let memos = [];
 let currentFilter = "all";
 let editingId = null;
 
+// 🔐 匿名ログイン開始
 signInAnonymously(auth).catch(console.error);
 
+// ✅ ログイン完了後にFirestore接続
 onAuthStateChanged(auth, (user) => {
   if (!user) return;
+
+  console.log("ログイン成功:", user.uid);
+
   memosRef = collection(db, "memos");
 
   onSnapshot(memosRef, (snapshot) => {
@@ -85,13 +89,15 @@ onAuthStateChanged(auth, (user) => {
   });
 });
 
+// フィルタ
 window.setFilter = (f) => {
   currentFilter = f;
   render();
 };
 
+// 保存
 window.saveMemo = async () => {
-  if (!memosRef) return alert("接続中…少し待ってね");
+  if (!memosRef) return alert("接続中…少し待ってから保存してね");
 
   const theme = document.getElementById("theme").value.trim();
   const text = document.getElementById("text").value;
@@ -147,10 +153,8 @@ function loadMemo(memo) {
   document.getElementById("status").value = memo.status;
   editingId = memo.id;
 }
-</script>
 
-<!-- 🌟 Service Worker登録 -->
-<script>
+// PWA用 service worker 登録
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('sw.js');
 }
