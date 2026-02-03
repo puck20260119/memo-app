@@ -3,31 +3,24 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>クラウドメモアプリ</title>
+  <title>クラウドメモ</title>
+
+  <!-- 🌟 アプリ化に必要 -->
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#4CAF50">
+  <link rel="apple-touch-icon" href="icon-192.png">
+
   <style>
     body { font-family: sans-serif; max-width: 600px; margin: 30px auto; padding: 10px; }
     textarea { width: 100%; height: 120px; margin-top: 8px; }
-    input, select, button { margin-top: 6px; padding: 6px; }
+    input, select, button { margin-top: 6px; padding: 8px; font-size: 16px; }
     li { margin-bottom: 8px; }
-    .delete-btn { font-size: 10px; margin-left: 10px; }
-    #loginBtn { background:#4285F4; color:white; border:none; }
-    #logoutBtn { background:#aaa; color:white; border:none; margin-left:6px;}
-
-  <link rel="manifest" href="manifest.json">
-<meta name="theme-color" content="#4CAF50">
-<meta name="mobile-web-app-capable" content="yes">
-
+    .delete-btn { font-size: 12px; margin-left: 10px; }
   </style>
 </head>
 <body>
 
 <h1>☁ クラウドメモ</h1>
-
-<button id="loginBtn">Googleでログイン</button>
-<button id="logoutBtn" style="display:none;">ログアウト</button>
-<p id="userInfo"></p>
-
-<hr>
 
 <input id="theme" placeholder="テーマ">
 <select id="status">
@@ -48,12 +41,18 @@
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 import {
-  getFirestore, collection, addDoc, deleteDoc, doc,
-  onSnapshot, updateDoc, query, where
+  getFirestore,
+  collection,
+  addDoc,
+  deleteDoc,
+  doc,
+  onSnapshot,
+  updateDoc
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 import {
-  getAuth, GoogleAuthProvider, signInWithPopup,
-  onAuthStateChanged, signOut
+  getAuth,
+  signInAnonymously,
+  onAuthStateChanged
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
 const firebaseConfig = {
@@ -68,57 +67,31 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const auth = getAuth(app);
-const provider = new GoogleAuthProvider();
 
+let memosRef;
 let memos = [];
-let memosRef = null;
-let editingId = null;
 let currentFilter = "all";
+let editingId = null;
 
-// 🔐 ログイン
-document.getElementById("loginBtn").onclick = () => {
-  signInWithPopup(auth, provider);
-};
+signInAnonymously(auth).catch(console.error);
 
-// 🚪 ログアウト
-document.getElementById("logoutBtn").onclick = () => {
-  signOut(auth);
-};
-
-// 🔄 ログイン状態監視
 onAuthStateChanged(auth, (user) => {
-  if (user) {
-    document.getElementById("userInfo").textContent = "ログイン中: " + user.email;
-    document.getElementById("loginBtn").style.display = "none";
-    document.getElementById("logoutBtn").style.display = "inline-block";
+  if (!user) return;
+  memosRef = collection(db, "memos");
 
-    // 🔥 自分のメモだけ取得
-    const q = query(collection(db, "memos"), where("owner", "==", user.uid));
-    memosRef = q;
-
-    onSnapshot(memosRef, (snapshot) => {
-      memos = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      render();
-    });
-
-  } else {
-    document.getElementById("userInfo").textContent = "";
-    document.getElementById("loginBtn").style.display = "inline-block";
-    document.getElementById("logoutBtn").style.display = "none";
-    memos = [];
+  onSnapshot(memosRef, (snapshot) => {
+    memos = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
     render();
-  }
+  });
 });
 
-// フィルタ
 window.setFilter = (f) => {
   currentFilter = f;
   render();
 };
 
-// 保存
 window.saveMemo = async () => {
-  if (!auth.currentUser) return alert("ログインしてください");
+  if (!memosRef) return alert("接続中…少し待ってね");
 
   const theme = document.getElementById("theme").value.trim();
   const text = document.getElementById("text").value;
@@ -129,24 +102,18 @@ window.saveMemo = async () => {
     await updateDoc(doc(db, "memos", editingId), { theme, text, status });
     editingId = null;
   } else {
-    await addDoc(collection(db, "memos"), {
-      theme,
-      text,
-      status,
-      created: Date.now(),
-      owner: auth.currentUser.uid // 🔐 所有者
-    });
+    await addDoc(memosRef, { theme, text, status, created: Date.now() });
   }
 
   clearEditor();
 };
 
-// 削除
-async function deleteMemo(id) {
-  await deleteDoc(doc(db, "memos", id));
+function clearEditor() {
+  document.getElementById("theme").value = "";
+  document.getElementById("text").value = "";
+  document.getElementById("status").value = "draft";
 }
 
-// 描画
 function render() {
   const list = document.getElementById("memoList");
   list.innerHTML = "";
@@ -164,7 +131,9 @@ function render() {
     const del = document.createElement("button");
     del.textContent = "🗑";
     del.className = "delete-btn";
-    del.onclick = () => deleteMemo(memo.id);
+    del.onclick = async () => {
+      await deleteDoc(doc(db, "memos", memo.id));
+    };
 
     li.appendChild(span);
     li.appendChild(del);
@@ -172,18 +141,18 @@ function render() {
   });
 }
 
-// 編集読み込み
 function loadMemo(memo) {
   document.getElementById("theme").value = memo.theme;
   document.getElementById("text").value = memo.text;
   document.getElementById("status").value = memo.status;
   editingId = memo.id;
 }
+</script>
 
-function clearEditor() {
-  document.getElementById("theme").value = "";
-  document.getElementById("text").value = "";
-  document.getElementById("status").value = "draft";
+<!-- 🌟 Service Worker登録 -->
+<script>
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('sw.js');
 }
 </script>
 
