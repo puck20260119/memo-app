@@ -43,20 +43,12 @@
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 import {
-  getFirestore,
-  collection,
-  addDoc,
-  deleteDoc,
-  doc,
-  onSnapshot,
-  updateDoc
+  getFirestore, collection, addDoc, deleteDoc, doc, onSnapshot, updateDoc
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 import {
-  getAuth,
-  GoogleAuthProvider,
-  signInWithPopup,
-  signOut,
-  onAuthStateChanged
+  getAuth, GoogleAuthProvider,
+  signInWithRedirect, getRedirectResult,
+  signOut, onAuthStateChanged
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
 const firebaseConfig = {
@@ -78,14 +70,16 @@ let memos = [];
 let currentFilter = "all";
 let editingId = null;
 
-// 🔐 ログイン処理
+// 🔐 Googleログイン（スマホ対応版）
 document.getElementById("loginBtn").onclick = () => {
-  signInWithPopup(auth, provider).catch(err => alert(err.message));
+  signInWithRedirect(auth, provider);
 };
 
-document.getElementById("logoutBtn").onclick = () => {
-  signOut(auth);
-};
+// 🔁 リダイレクト後のログイン結果受け取り
+getRedirectResult(auth).catch(err => alert(err.message));
+
+// ログアウト
+document.getElementById("logoutBtn").onclick = () => signOut(auth);
 
 // 🔄 ログイン状態監視
 onAuthStateChanged(auth, (user) => {
@@ -115,10 +109,7 @@ onAuthStateChanged(auth, (user) => {
 });
 
 // フィルタ
-window.setFilter = (f) => {
-  currentFilter = f;
-  render();
-};
+window.setFilter = (f) => { currentFilter = f; render(); };
 
 // 保存
 window.saveMemo = async () => {
@@ -134,16 +125,19 @@ window.saveMemo = async () => {
     await updateDoc(doc(db, "memos", editingId), { theme, text, status });
     editingId = null;
   } else {
-    await addDoc(memosRef, { theme, text, status, created: Date.now(), uid: auth.currentUser.uid });
+    await addDoc(memosRef, {
+      theme, text, status,
+      created: Date.now(),
+      uid: auth.currentUser.uid
+    });
   }
-
   clearEditor();
 };
 
 function clearEditor() {
-  document.getElementById("theme").value = "";
-  document.getElementById("text").value = "";
-  document.getElementById("status").value = "draft";
+  theme.value = "";
+  text.value = "";
+  status.value = "draft";
 }
 
 function render() {
@@ -163,9 +157,7 @@ function render() {
     const del = document.createElement("button");
     del.textContent = "🗑";
     del.className = "delete-btn";
-    del.onclick = async () => {
-      await deleteDoc(doc(db, "memos", memo.id));
-    };
+    del.onclick = async () => await deleteDoc(doc(db, "memos", memo.id));
 
     li.appendChild(span);
     li.appendChild(del);
@@ -174,13 +166,12 @@ function render() {
 }
 
 function loadMemo(memo) {
-  document.getElementById("theme").value = memo.theme;
-  document.getElementById("text").value = memo.text;
-  document.getElementById("status").value = memo.status;
+  theme.value = memo.theme;
+  text.value = memo.text;
+  status.value = memo.status;
   editingId = memo.id;
 }
 </script>
-
 </body>
 </html>
 
