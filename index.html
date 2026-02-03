@@ -43,12 +43,23 @@
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 import {
-  getFirestore, collection, addDoc, deleteDoc, doc, onSnapshot, updateDoc
+  getFirestore,
+  collection,
+  addDoc,
+  deleteDoc,
+  doc,
+  onSnapshot,
+  updateDoc,
+  query,
+  where
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 import {
-  getAuth, GoogleAuthProvider,
-  signInWithRedirect, getRedirectResult,
-  signOut, onAuthStateChanged
+  getAuth,
+  GoogleAuthProvider,
+  signInWithRedirect,
+  getRedirectResult,
+  signOut,
+  onAuthStateChanged
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
 const firebaseConfig = {
@@ -70,16 +81,18 @@ let memos = [];
 let currentFilter = "all";
 let editingId = null;
 
-// 🔐 Googleログイン（スマホ対応版）
+// 🔐 ログイン処理
 document.getElementById("loginBtn").onclick = () => {
   signInWithRedirect(auth, provider);
 };
 
-// 🔁 リダイレクト後のログイン結果受け取り
+// 🔄 リダイレクトログイン結果処理
 getRedirectResult(auth).catch(err => alert(err.message));
 
-// ログアウト
-document.getElementById("logoutBtn").onclick = () => signOut(auth);
+// 🔓 ログアウト
+document.getElementById("logoutBtn").onclick = () => {
+  signOut(auth);
+};
 
 // 🔄 ログイン状態監視
 onAuthStateChanged(auth, (user) => {
@@ -92,7 +105,8 @@ onAuthStateChanged(auth, (user) => {
     logoutBtn.style.display = "inline-block";
     userInfo.textContent = "👤 " + user.displayName;
 
-    memosRef = collection(db, "memos");
+    // 🔒 自分のメモだけ取得
+    memosRef = query(collection(db, "memos"), where("uid", "==", user.uid));
 
     onSnapshot(memosRef, (snapshot) => {
       memos = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
@@ -109,7 +123,10 @@ onAuthStateChanged(auth, (user) => {
 });
 
 // フィルタ
-window.setFilter = (f) => { currentFilter = f; render(); };
+window.setFilter = (f) => {
+  currentFilter = f;
+  render();
+};
 
 // 保存
 window.saveMemo = async () => {
@@ -125,19 +142,22 @@ window.saveMemo = async () => {
     await updateDoc(doc(db, "memos", editingId), { theme, text, status });
     editingId = null;
   } else {
-    await addDoc(memosRef, {
-      theme, text, status,
+    await addDoc(collection(db, "memos"), {
+      theme,
+      text,
+      status,
       created: Date.now(),
       uid: auth.currentUser.uid
     });
   }
+
   clearEditor();
 };
 
 function clearEditor() {
-  theme.value = "";
-  text.value = "";
-  status.value = "draft";
+  document.getElementById("theme").value = "";
+  document.getElementById("text").value = "";
+  document.getElementById("status").value = "draft";
 }
 
 function render() {
@@ -157,7 +177,9 @@ function render() {
     const del = document.createElement("button");
     del.textContent = "🗑";
     del.className = "delete-btn";
-    del.onclick = async () => await deleteDoc(doc(db, "memos", memo.id));
+    del.onclick = async () => {
+      await deleteDoc(doc(db, "memos", memo.id));
+    };
 
     li.appendChild(span);
     li.appendChild(del);
@@ -166,12 +188,13 @@ function render() {
 }
 
 function loadMemo(memo) {
-  theme.value = memo.theme;
-  text.value = memo.text;
-  status.value = memo.status;
+  document.getElementById("theme").value = memo.theme;
+  document.getElementById("text").value = memo.text;
+  document.getElementById("status").value = memo.status;
   editingId = memo.id;
 }
 </script>
+
 </body>
 </html>
 
