@@ -5,21 +5,24 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>クラウドメモ</title>
 
-  <!-- PWA用 -->
-  <link rel="manifest" href="manifest.json">
-  <meta name="theme-color" content="#4CAF50">
-
   <style>
     body { font-family: sans-serif; max-width: 600px; margin: 30px auto; padding: 10px; }
     textarea { width: 100%; height: 120px; margin-top: 8px; }
     input, select, button { margin-top: 6px; padding: 6px; }
     li { margin-bottom: 8px; }
     .delete-btn { font-size: 10px; margin-left: 10px; }
+    #loginArea { margin-bottom: 15px; }
   </style>
 </head>
 <body>
 
 <h1>☁ クラウドメモ</h1>
+
+<div id="loginArea">
+  <button id="loginBtn">Googleでログイン</button>
+  <button id="logoutBtn" style="display:none;">ログアウト</button>
+  <span id="userInfo"></span>
+</div>
 
 <input id="theme" placeholder="テーマ">
 <select id="status">
@@ -50,7 +53,9 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 import {
   getAuth,
-  signInAnonymously,
+  GoogleAuthProvider,
+  signInWithPopup,
+  signOut,
   onAuthStateChanged
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
@@ -66,27 +71,47 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const auth = getAuth(app);
+const provider = new GoogleAuthProvider();
 
 let memosRef = null;
 let memos = [];
 let currentFilter = "all";
 let editingId = null;
 
-// 🔐 匿名ログイン開始
-signInAnonymously(auth).catch(console.error);
+// 🔐 ログイン処理
+document.getElementById("loginBtn").onclick = () => {
+  signInWithPopup(auth, provider).catch(err => alert(err.message));
+};
 
-// ✅ ログイン完了後にFirestore接続
+document.getElementById("logoutBtn").onclick = () => {
+  signOut(auth);
+};
+
+// 🔄 ログイン状態監視
 onAuthStateChanged(auth, (user) => {
-  if (!user) return;
+  const loginBtn = document.getElementById("loginBtn");
+  const logoutBtn = document.getElementById("logoutBtn");
+  const userInfo = document.getElementById("userInfo");
 
-  console.log("ログイン成功:", user.uid);
+  if (user) {
+    loginBtn.style.display = "none";
+    logoutBtn.style.display = "inline-block";
+    userInfo.textContent = "👤 " + user.displayName;
 
-  memosRef = collection(db, "memos");
+    memosRef = collection(db, "memos");
 
-  onSnapshot(memosRef, (snapshot) => {
-    memos = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    onSnapshot(memosRef, (snapshot) => {
+      memos = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      render();
+    });
+
+  } else {
+    loginBtn.style.display = "inline-block";
+    logoutBtn.style.display = "none";
+    userInfo.textContent = "";
+    memos = [];
     render();
-  });
+  }
 });
 
 // フィルタ
@@ -97,7 +122,8 @@ window.setFilter = (f) => {
 
 // 保存
 window.saveMemo = async () => {
-  if (!memosRef) return alert("接続中…少し待ってから保存してね");
+  if (!auth.currentUser) return alert("先にログインしてね！");
+  if (!memosRef) return;
 
   const theme = document.getElementById("theme").value.trim();
   const text = document.getElementById("text").value;
@@ -108,7 +134,7 @@ window.saveMemo = async () => {
     await updateDoc(doc(db, "memos", editingId), { theme, text, status });
     editingId = null;
   } else {
-    await addDoc(memosRef, { theme, text, status, created: Date.now() });
+    await addDoc(memosRef, { theme, text, status, created: Date.now(), uid: auth.currentUser.uid });
   }
 
   clearEditor();
@@ -153,12 +179,8 @@ function loadMemo(memo) {
   document.getElementById("status").value = memo.status;
   editingId = memo.id;
 }
-
-// PWA用 service worker 登録
-if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('sw.js');
-}
 </script>
 
 </body>
 </html>
+
