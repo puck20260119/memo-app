@@ -4,25 +4,19 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>クラウドメモ</title>
-
   <style>
     body { font-family: sans-serif; max-width: 600px; margin: 30px auto; padding: 10px; }
     textarea { width: 100%; height: 120px; margin-top: 8px; }
     input, select, button { margin-top: 6px; padding: 6px; }
     li { margin-bottom: 8px; }
     .delete-btn { font-size: 10px; margin-left: 10px; }
-    #loginArea { margin-bottom: 15px; }
+    #userInfo { font-size: 12px; color: gray; margin-bottom: 10px; }
   </style>
 </head>
 <body>
 
 <h1>☁ クラウドメモ</h1>
-
-<div id="loginArea">
-  <button id="loginBtn">Googleでログイン</button>
-  <button id="logoutBtn" style="display:none;">ログアウト</button>
-  <span id="userInfo"></span>
-</div>
+<div id="userInfo">接続中...</div>
 
 <input id="theme" placeholder="テーマ">
 <select id="status">
@@ -55,10 +49,7 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 import {
   getAuth,
-  GoogleAuthProvider,
-  signInWithRedirect,
-  getRedirectResult,
-  signOut,
+  signInAnonymously,
   onAuthStateChanged
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
@@ -74,52 +65,29 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const auth = getAuth(app);
-const provider = new GoogleAuthProvider();
 
 let memosRef = null;
 let memos = [];
 let currentFilter = "all";
 let editingId = null;
 
-// 🔐 ログイン処理
-document.getElementById("loginBtn").onclick = () => {
-  signInWithRedirect(auth, provider);
-};
-
-// 🔄 リダイレクトログイン結果処理
-getRedirectResult(auth).catch(err => alert(err.message));
-
-// 🔓 ログアウト
-document.getElementById("logoutBtn").onclick = () => {
-  signOut(auth);
-};
+// 🔐 匿名ログイン
+signInAnonymously(auth).catch(err => alert(err.message));
 
 // 🔄 ログイン状態監視
 onAuthStateChanged(auth, (user) => {
-  const loginBtn = document.getElementById("loginBtn");
-  const logoutBtn = document.getElementById("logoutBtn");
-  const userInfo = document.getElementById("userInfo");
+  if (!user) return;
 
-  if (user) {
-    loginBtn.style.display = "none";
-    logoutBtn.style.display = "inline-block";
-    userInfo.textContent = "👤 " + user.displayName;
+  document.getElementById("userInfo").textContent =
+    "あなたのID: " + user.uid.slice(0, 8);
 
-    // 🔒 自分のメモだけ取得
-    memosRef = query(collection(db, "memos"), where("uid", "==", user.uid));
+  // 自分のメモだけ取得
+  memosRef = query(collection(db, "memos"), where("uid", "==", user.uid));
 
-    onSnapshot(memosRef, (snapshot) => {
-      memos = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      render();
-    });
-
-  } else {
-    loginBtn.style.display = "inline-block";
-    logoutBtn.style.display = "none";
-    userInfo.textContent = "";
-    memos = [];
+  onSnapshot(memosRef, (snapshot) => {
+    memos = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
     render();
-  }
+  });
 });
 
 // フィルタ
@@ -130,8 +98,7 @@ window.setFilter = (f) => {
 
 // 保存
 window.saveMemo = async () => {
-  if (!auth.currentUser) return alert("先にログインしてね！");
-  if (!memosRef) return;
+  if (!auth.currentUser) return alert("接続待機中…");
 
   const theme = document.getElementById("theme").value.trim();
   const text = document.getElementById("text").value;
@@ -197,4 +164,5 @@ function loadMemo(memo) {
 
 </body>
 </html>
+
 
