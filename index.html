@@ -15,11 +15,11 @@
     #lockScreen { text-align: center; margin-top: 100px; }
     #lockScreen input { font-size: 20px; text-align: center; width: 120px; }
   </style>
-  
-  <link rel="manifest" href="manifest.json">
-<meta name="theme-color" content="#4a90e2">
-<link rel="apple-touch-icon" href="icon.png">
 
+  <!-- 📱 アプリ化設定 -->
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#4a90e2">
+  <link rel="apple-touch-icon" href="icon.png">
 </head>
 <body>
 
@@ -66,7 +66,7 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
 /* 🔑 好きな4桁に変更OK */
-const PASSCODE = "5526"; 
+const PASSCODE = "5526";
 
 window.unlock = () => {
   const input = document.getElementById("passInput").value;
@@ -102,6 +102,8 @@ function startApp() {
   onSnapshot(memosRef, (snapshot) => {
     memos = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
     render();
+  }, (error) => {
+    alert("Firestore接続エラー: " + error.message);
   });
 }
 
@@ -111,21 +113,24 @@ window.setFilter = (f) => {
 };
 
 window.saveMemo = async () => {
-  if (!memosRef) return;
+  if (!memosRef) return alert("まだ接続中です");
 
   const theme = document.getElementById("theme").value.trim();
   const text = document.getElementById("text").value;
   const status = document.getElementById("status").value;
-  if (!theme) return;
+  if (!theme) return alert("テーマを入力してね");
 
-  if (editingId) {
-    await updateDoc(doc(db, "memos", editingId), { theme, text, status });
-    editingId = null;
-  } else {
-    await addDoc(memosRef, { theme, text, status, created: Date.now() });
+  try {
+    if (editingId) {
+      await updateDoc(doc(db, "memos", editingId), { theme, text, status });
+      editingId = null;
+    } else {
+      await addDoc(memosRef, { theme, text, status, created: Date.now() });
+    }
+    clearEditor();
+  } catch (e) {
+    alert("保存エラー: " + e.message);
   }
-
-  clearEditor();
 };
 
 function clearEditor() {
@@ -171,5 +176,4 @@ function loadMemo(memo) {
 
 </body>
 </html>
-
 
