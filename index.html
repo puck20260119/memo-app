@@ -1,69 +1,115 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>クラウドメモ</title>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>クラウドメモ</title>
 
-  <style>
-    body {
-      font-family: sans-serif;
-      max-width: 600px;
-      margin: 30px auto;
-      padding: 10px;
-    }
+<style>
+:root {
+  --bg: #ffffff;
+  --text: #222222;
+  --card: #f5f5f5;
+  --accent: #4a90e2;
+}
 
-    /* ← テーマ欄を横いっぱいに */
-    #theme {
-      width: 100%;
-      font-size: 18px;
-      padding: 10px;
-      box-sizing: border-box;
-    }
+/* 🌙 ダークモード用変数 */
+body.dark {
+  --bg: #121212;
+  --text: #eeeeee;
+  --card: #1e1e1e;
+  --accent: #5aa9ff;
+}
 
-    /* ← メモ欄を大きく */
-    textarea {
-      width: 100%;
-      height: 200px;
-      margin-top: 8px;
-      font-size: 16px;
-      padding: 10px;
-      box-sizing: border-box;
-    }
+body {
+  font-family: sans-serif;
+  max-width: 600px;
+  margin: 30px auto;
+  padding: 10px;
+  background: var(--bg);
+  color: var(--text);
+  transition: 0.3s;
+}
 
-    select, button {
-      margin-top: 8px;
-      padding: 8px;
-      font-size: 14px;
-    }
+h1 { text-align: center; }
 
-    li { margin-bottom: 10px; }
+#theme {
+  width: 100%;
+  font-size: 18px;
+  padding: 10px;
+  box-sizing: border-box;
+  background: var(--card);
+  color: var(--text);
+  border: 1px solid #ccc;
+}
 
-    .delete-btn {
-      font-size: 12px;
-      margin-left: 10px;
-    }
+textarea {
+  width: 100%;
+  height: 200px;
+  margin-top: 8px;
+  font-size: 16px;
+  padding: 10px;
+  box-sizing: border-box;
+  background: var(--card);
+  color: var(--text);
+  border: 1px solid #ccc;
+}
 
-    #app { display: none; }
+select, button {
+  margin-top: 8px;
+  padding: 8px;
+  font-size: 14px;
+  background: var(--accent);
+  color: white;
+  border: none;
+  border-radius: 6px;
+}
 
-    #lockScreen {
-      text-align: center;
-      margin-top: 100px;
-    }
+li {
+  margin-bottom: 10px;
+  background: var(--card);
+  padding: 8px;
+  border-radius: 6px;
+}
 
-    #lockScreen input {
-      font-size: 20px;
-      text-align: center;
-      width: 120px;
-      padding: 8px;
-    }
-  </style>
+.delete-btn {
+  font-size: 12px;
+  margin-left: 10px;
+  background: #e74c3c;
+}
 
-  <link rel="manifest" href="manifest.json">
-  <meta name="theme-color" content="#4a90e2">
-  <link rel="apple-touch-icon" href="icon.png">
+#app { display: none; }
+
+#lockScreen {
+  text-align: center;
+  margin-top: 100px;
+}
+
+#lockScreen input {
+  font-size: 20px;
+  text-align: center;
+  width: 120px;
+  padding: 8px;
+}
+
+/* 🌙 ダークモード切替ボタン */
+#modeToggle {
+  position: fixed;
+  top: 10px;
+  right: 10px;
+  background: var(--card);
+  color: var(--text);
+  border: 1px solid #aaa;
+}
+</style>
+
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#4a90e2">
+<link rel="apple-touch-icon" href="icon.png">
 </head>
 <body>
+
+<button id="modeToggle">🌙</button>
 
 <!-- 🔒 ロック画面 -->
 <div id="lockScreen">
@@ -100,16 +146,10 @@
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 import {
-  getFirestore,
-  collection,
-  addDoc,
-  deleteDoc,
-  doc,
-  onSnapshot,
-  updateDoc
+  getFirestore, collection, addDoc, deleteDoc, doc, onSnapshot, updateDoc
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-/* 🔑 好きな4桁に変更OK */
+/* 🔑 パスコード */
 const PASSCODE = "1212";
 
 window.unlock = () => {
@@ -123,6 +163,7 @@ window.unlock = () => {
   }
 };
 
+/* 🔥 Firebase */
 const firebaseConfig = {
   apiKey: "AIzaSyABRqabTZH_2lxSgPK8zfF_IY0MDXRvHOw",
   authDomain: "memo-sync-65e5f.firebaseapp.com",
@@ -142,21 +183,16 @@ let editingId = null;
 
 function startApp() {
   memosRef = collection(db, "memos");
-
   onSnapshot(memosRef, (snapshot) => {
     memos = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
     render();
   });
 }
 
-window.setFilter = (f) => {
-  currentFilter = f;
-  render();
-};
+window.setFilter = (f) => { currentFilter = f; render(); };
 
 window.saveMemo = async () => {
   if (!memosRef) return;
-
   const theme = document.getElementById("theme").value.trim();
   const text = document.getElementById("text").value;
   const status = document.getElementById("status").value;
@@ -168,25 +204,21 @@ window.saveMemo = async () => {
   } else {
     await addDoc(memosRef, { theme, text, status, created: Date.now() });
   }
-
   clearEditor();
 };
 
 function clearEditor() {
-  document.getElementById("theme").value = "";
-  document.getElementById("text").value = "";
-  document.getElementById("status").value = "draft";
+  theme.value = "";
+  text.value = "";
+  status.value = "draft";
 }
 
 function render() {
-  const list = document.getElementById("memoList");
-  list.innerHTML = "";
-
+  memoList.innerHTML = "";
   memos.forEach((memo) => {
     if (currentFilter !== "all" && memo.status !== currentFilter) return;
 
     const li = document.createElement("li");
-
     const span = document.createElement("span");
     span.textContent = `${memo.status === "published" ? "🌍" : "📝"} ${memo.theme}`;
     span.style.cursor = "pointer";
@@ -195,24 +227,36 @@ function render() {
     const del = document.createElement("button");
     del.textContent = "🗑";
     del.className = "delete-btn";
-    del.onclick = async () => {
-      await deleteDoc(doc(db, "memos", memo.id));
-    };
+    del.onclick = async () => await deleteDoc(doc(db, "memos", memo.id));
 
     li.appendChild(span);
     li.appendChild(del);
-    list.appendChild(li);
+    memoList.appendChild(li);
   });
 }
 
 function loadMemo(memo) {
-  document.getElementById("theme").value = memo.theme;
-  document.getElementById("text").value = memo.text;
-  document.getElementById("status").value = memo.status;
+  theme.value = memo.theme;
+  text.value = memo.text;
+  status.value = memo.status;
   editingId = memo.id;
 }
+
+/* 🌙 ダークモード制御 */
+const toggleBtn = document.getElementById("modeToggle");
+
+// 端末設定を初期反映
+if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+  document.body.classList.add("dark");
+}
+
+toggleBtn.onclick = () => {
+  document.body.classList.toggle("dark");
+  toggleBtn.textContent = document.body.classList.contains("dark") ? "☀️" : "🌙";
+};
 </script>
 
 </body>
 </html>
+
 
