@@ -29,14 +29,9 @@ header{
   font-weight:600;
   background:var(--panel);
   border-bottom:1px solid var(--border);
-  letter-spacing:.5px;
 }
 
-.container{
-  max-width:720px;
-  margin:auto;
-  padding:16px;
-}
+.container{max-width:720px;margin:auto;padding:16px;}
 
 .card{
   background:var(--panel);
@@ -59,7 +54,7 @@ input, textarea, select{
   box-sizing:border-box;
 }
 
-textarea{ height:180px; resize:vertical; }
+textarea{height:180px;}
 
 button{
   background:var(--accent);
@@ -69,34 +64,16 @@ button{
   border-radius:8px;
   margin-top:10px;
   cursor:pointer;
-  font-size:14px;
-  transition:.15s;
 }
-
-button:hover{ opacity:.85; }
-button.secondary{ background:#444; }
-button.danger{ background:var(--danger); }
 
 .memo{
   padding:10px 12px;
   border-radius:8px;
   background:#232428;
   margin-bottom:8px;
-  border:1px solid transparent;
-  cursor:pointer;
   display:flex;
   justify-content:space-between;
   align-items:center;
-}
-
-.memo:hover{
-  border-color:var(--accent);
-  background:#26282d;
-}
-
-.memo small{
-  color:var(--sub);
-  font-size:12px;
 }
 
 #lockScreen{
@@ -123,7 +100,7 @@ button.danger{ background:var(--danger); }
 
 <div id="lockScreen">
   <h2>🔒 Enter Passcode</h2>
-  <input type="password" id="passInput" maxlength="4">
+  <input type="password" id="passInput" maxlength="4" inputmode="numeric">
   <button onclick="unlock()">Unlock</button>
   <p id="lockMsg" style="color:var(--danger)"></p>
 </div>
@@ -143,9 +120,9 @@ button.danger{ background:var(--danger); }
     </div>
 
     <div class="card">
-      <button class="secondary" onclick="setFilter('all')">All</button>
-      <button class="secondary" onclick="setFilter('draft')">Draft</button>
-      <button class="secondary" onclick="setFilter('published')">Published</button>
+      <button onclick="setFilter('all')">All</button>
+      <button onclick="setFilter('draft')">Draft</button>
+      <button onclick="setFilter('published')">Published</button>
       <div id="memoList" style="margin-top:12px;"></div>
     </div>
 
@@ -158,4 +135,97 @@ import {
   getFirestore, collection, addDoc, deleteDoc, doc, onSnapshot, updateDoc
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-const
+const PASSCODE="1212";
+
+/* 🔓 ロック解除（最強版） */
+window.unlock=()=>{
+  let input=document.getElementById("passInput").value;
+
+  // 全角→半角変換
+  input=input.replace(/[０-９]/g,s=>String.fromCharCode(s.charCodeAt(0)-65248));
+
+  // 空白削除
+  input=input.trim();
+
+  if(input===PASSCODE){
+    document.getElementById("lockScreen").style.display="none";
+    document.getElementById("app").style.display="block";
+    startApp();
+  }else{
+    document.getElementById("lockMsg").textContent="Wrong passcode";
+  }
+};
+
+/* Enterキーでも解除 */
+document.getElementById("passInput").addEventListener("keydown",e=>{
+  if(e.key==="Enter") unlock();
+});
+
+const firebaseConfig={
+  apiKey:"AIzaSyABRqabTZH_2lxSgPK8zfF_IY0MDXRvHOw",
+  authDomain:"memo-sync-65e5f.firebaseapp.com",
+  projectId:"memo-sync-65e5f",
+  storageBucket:"memo-sync-65e5f.firebasestorage.app",
+  messagingSenderId:"1044879277772",
+  appId:"1:1044879277772:web:60440696265ebb11efcc69"
+};
+
+const app=initializeApp(firebaseConfig);
+const db=getFirestore(app);
+
+let memosRef,memos=[],currentFilter="all",editingId=null;
+
+function startApp(){
+  memosRef=collection(db,"memos");
+  onSnapshot(memosRef,snap=>{
+    memos=snap.docs.map(d=>({id:d.id,...d.data()}));
+    render();
+  });
+}
+
+window.setFilter=f=>{currentFilter=f;render();};
+
+window.saveMemo=async()=>{
+  const theme=themeInput.value.trim();
+  if(!theme)return;
+  const text=textInput.value;
+  const status=statusInput.value;
+  if(editingId){
+    await updateDoc(doc(db,"memos",editingId),{theme,text,status});
+    editingId=null;
+  }else{
+    await addDoc(memosRef,{theme,text,status,created:Date.now()});
+  }
+  themeInput.value="";textInput.value="";
+};
+
+function render(){
+  memoList.innerHTML="";
+  memos.forEach(m=>{
+    if(currentFilter!=="all"&&m.status!==currentFilter)return;
+    const div=document.createElement("div");
+    div.className="memo";
+    div.innerHTML=`<span>${m.status==="published"?"🌍":"📝"} ${m.theme}</span>`;
+    const del=document.createElement("button");
+    del.textContent="✕";
+    del.onclick=e=>{e.stopPropagation();deleteDoc(doc(db,"memos",m.id));};
+    div.appendChild(del);
+    div.onclick=()=>loadMemo(m);
+    memoList.appendChild(div);
+  });
+}
+
+function loadMemo(m){
+  themeInput.value=m.theme;
+  textInput.value=m.text;
+  statusInput.value=m.status;
+  editingId=m.id;
+}
+
+const themeInput=document.getElementById("theme");
+const textInput=document.getElementById("text");
+const statusInput=document.getElementById("status");
+const memoList=document.getElementById("memoList");
+</script>
+</body>
+</html>
