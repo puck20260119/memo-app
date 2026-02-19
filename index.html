@@ -17,7 +17,6 @@ body{
   padding:20px;
 }
 
-/* 🔒 ロック画面 */
 #lockScreen{
   position:fixed;
   inset:0;
@@ -49,15 +48,9 @@ body{
   cursor:pointer;
 }
 
-.hidden{
-  display:none;
-}
+.hidden{ display:none; }
 
-/* 通常UI */
-h1{
-  text-align:center;
-  margin-bottom:20px;
-}
+h1{ text-align:center; margin-bottom:20px; }
 
 .card{
   background:#1e293b;
@@ -119,7 +112,7 @@ button{
 <div id="lockScreen">
   <h2>🔒 ロック解除</h2>
   <input type="password" id="passwordInput" placeholder="パスワード">
-  <button onclick="unlock()">解除</button>
+  <button id="unlockBtn">解除</button>
   <small id="lockMessage"></small>
 </div>
 
@@ -141,9 +134,9 @@ button{
 </div>
 
 <div id="memoList"></div>
-
 </div>
 
+<!-- Firebase -->
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 import {
@@ -166,8 +159,8 @@ const firebaseConfig = {
   appId:"1:1044879277772:web:60440696265ebb11efcc69"
 };
 
-const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
+const firebaseApp = initializeApp(firebaseConfig);
+const db = getFirestore(firebaseApp);
 enableIndexedDbPersistence(db).catch(()=>{});
 const memosRef = collection(db,"memos");
 
@@ -178,16 +171,12 @@ const memoList = document.getElementById("memoList");
 
 let editingId=null;
 
-const statusOrder = {
-  "未着手":0,
-  "進行中":1,
-  "完了":2
-};
+const statusOrder = { "未着手":0,"進行中":1,"完了":2 };
 
 window.saveMemo=async()=>{
   const theme=themeInput.value.trim();
   const text=textInput.value.trim();
-  const status=statusInput?.value || "未着手";
+  const status=statusInput.value;
   if(!theme)return alert("タイトルを入力してください");
 
   if(editingId){
@@ -222,10 +211,8 @@ onSnapshot(memosRef,(snapshot)=>{
       <div class="memoHeader">
         <div class="memoTitle">${data.theme}</div>
         <div class="memoButtons">
-          <button class="editBtn"
-            onclick="editMemo('${data.id}','${data.theme}','${data.text}','${data.status}')">編集</button>
-          <button class="deleteBtn"
-            onclick="deleteMemo('${data.id}')">削除</button>
+          <button class="editBtn" onclick="editMemo('${data.id}','${data.theme}','${data.text}','${data.status}')">編集</button>
+          <button class="deleteBtn" onclick="deleteMemo('${data.id}')">削除</button>
         </div>
       </div>
       <div>${data.text}</div>
@@ -240,39 +227,40 @@ window.editMemo=(id,theme,text,status)=>{
   editingId=id;
   themeInput.value=theme;
   textInput.value=text;
-  statusInput.value=status||"未着手";
+  statusInput.value=status;
 };
 </script>
 
+<!-- 🔒 ロック処理（確実動作版） -->
 <script>
-const lockScreen = document.getElementById("lockScreen");
-const appContainer = document.getElementById("app");
-const passwordInput = document.getElementById("passwordInput");
-const lockMessage = document.getElementById("lockMessage");
+document.addEventListener("DOMContentLoaded",function(){
 
-const FIXED_PASSWORD = "1212";
+  const lockScreen=document.getElementById("lockScreen");
+  const appContainer=document.getElementById("app");
+  const passwordInput=document.getElementById("passwordInput");
+  const unlockBtn=document.getElementById("unlockBtn");
+  const lockMessage=document.getElementById("lockMessage");
 
-window.unlock = () => {
-  if (passwordInput.value === FIXED_PASSWORD) {
-    lockScreen.classList.add("hidden");
-    appContainer.classList.remove("hidden");
-    passwordInput.value = "";
-    lockMessage.textContent = "";
-  } else {
-    lockMessage.textContent = "パスワードが違います";
+  const FIXED_PASSWORD="1212";
+
+  function unlock(){
+    if(passwordInput.value===FIXED_PASSWORD){
+      lockScreen.style.display="none";
+      appContainer.classList.remove("hidden");
+      passwordInput.value="";
+      lockMessage.textContent="";
+    }else{
+      lockMessage.textContent="パスワードが違います";
+    }
   }
-};
 
-passwordInput.addEventListener("keydown", (e) => {
-  if (e.key === "Enter") unlock();
+  unlockBtn.addEventListener("click",unlock);
+  passwordInput.addEventListener("keydown",(e)=>{
+    if(e.key==="Enter") unlock();
+  });
+
 });
-
-if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("./sw.js");
-}
 </script>
-
-
 
 </body>
 </html>
