@@ -246,17 +246,16 @@ window.editMemo=(id,theme,text,status)=>{
 
 <script>
 const lockScreen = document.getElementById("lockScreen");
-const app = document.getElementById("app");
+const appContainer = document.getElementById("app");
 const passwordInput = document.getElementById("passwordInput");
 const lockMessage = document.getElementById("lockMessage");
 
-// 🔒 固定パスワード
 const FIXED_PASSWORD = "1212";
 
 window.unlock = () => {
   if (passwordInput.value === FIXED_PASSWORD) {
     lockScreen.classList.add("hidden");
-    app.classList.remove("hidden");
+    appContainer.classList.remove("hidden");
     passwordInput.value = "";
     lockMessage.textContent = "";
   } else {
@@ -264,8 +263,7 @@ window.unlock = () => {
   }
 };
 
-// Enterキーで解除
-passwordInput.addEventListener("keypress", (e) => {
+passwordInput.addEventListener("keydown", (e) => {
   if (e.key === "Enter") unlock();
 });
 
@@ -273,6 +271,7 @@ if ("serviceWorker" in navigator) {
   navigator.serviceWorker.register("./sw.js");
 }
 </script>
+
 
 
 </body>
