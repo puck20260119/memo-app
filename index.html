@@ -3,53 +3,83 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>メモアプリ</title>
+<title>Memo App</title>
 
 <link rel="manifest" href="manifest.json">
-<meta name="theme-color" content="#111">
+<meta name="theme-color" content="#0f172a">
 
 <style>
 body{
-  font-family:sans-serif;
   margin:0;
-  padding:20px;
-  background:#111;
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto;
+  background:#0f172a;
   color:white;
+  padding:20px;
 }
-input, textarea, select, button{
+
+h1{
+  text-align:center;
+  margin-bottom:20px;
+}
+
+.card{
+  background:#1e293b;
+  padding:15px;
+  border-radius:16px;
+  margin-bottom:15px;
+  box-shadow:0 4px 10px rgba(0,0,0,0.3);
+}
+
+input,textarea,select{
   width:100%;
   margin-bottom:10px;
   padding:10px;
-  border-radius:8px;
+  border-radius:10px;
   border:none;
-}
-button{
-  background:#4caf50;
+  background:#334155;
   color:white;
+}
+
+button{
+  padding:8px 12px;
+  border:none;
+  border-radius:8px;
+  cursor:pointer;
+  margin-right:5px;
   font-weight:bold;
 }
-.memo{
-  background:#222;
-  padding:10px;
-  margin-bottom:10px;
-  border-radius:8px;
+
+.saveBtn{ background:#22c55e; color:white; }
+.editBtn{ background:#3b82f6; color:white; }
+.deleteBtn{ background:#ef4444; color:white; }
+
+.memoTitle{
+  font-size:18px;
+  font-weight:bold;
+}
+
+.memoStatus{
+  font-size:12px;
+  opacity:0.7;
 }
 </style>
 </head>
 <body>
 
-<h2>メモアプリ</h2>
+<h1>Memo App</h1>
 
-<input id="theme" placeholder="タイトル">
-<textarea id="text" placeholder="内容"></textarea>
+<div class="card">
+  <input id="theme" placeholder="タイトル">
+  <textarea id="text" placeholder="内容"></textarea>
 
-<select id="status">
-  <option value="未着手">未着手</option>
-  <option value="進行中">進行中</option>
-  <option value="完了">完了</option>
-</select>
+  <select id="status">
+    <option value="未着手">未着手</option>
+    <option value="進行中">進行中</option>
+    <option value="完了">完了</option>
+  </select>
 
-<button onclick="saveMemo()">保存</button>
+  <button class="saveBtn" onclick="saveMemo()">保存</button>
+</div>
 
 <div id="memoList"></div>
 
@@ -67,7 +97,7 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
 const firebaseConfig = {
-   apiKey:"AIzaSyABRqabTZH_2lxSgPK8zfF_IY0MDXRvHOw",
+  apiKey:"AIzaSyABRqabTZH_2lxSgPK8zfF_IY0MDXRvHOw",
   authDomain:"memo-sync-65e5f.firebaseapp.com",
   projectId:"memo-sync-65e5f",
   storageBucket:"memo-sync-65e5f.firebasestorage.app",
@@ -78,10 +108,7 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
-// ⭐ オフライン対応
-enableIndexedDbPersistence(db).catch((err)=>{
-  console.log("オフラインエラー:", err.code);
-});
+enableIndexedDbPersistence(db).catch(()=>{});
 
 const memosRef = collection(db,"memos");
 
@@ -90,13 +117,13 @@ const textInput = document.getElementById("text");
 const statusInput = document.getElementById("status");
 const memoList = document.getElementById("memoList");
 
-let editingId = null;
+let editingId=null;
 
-window.saveMemo = async () => {
+window.saveMemo=async()=>{
   try{
-    const theme = themeInput.value.trim();
-    const text = textInput.value.trim();
-    const status = statusInput?.value || "未着手"; // ⭐ undefined防止
+    const theme=themeInput.value.trim();
+    const text=textInput.value.trim();
+    const status=statusInput?.value || "未着手";
 
     if(!theme){
       alert("タイトルを入力してください");
@@ -105,16 +132,12 @@ window.saveMemo = async () => {
 
     if(editingId){
       await updateDoc(doc(db,"memos",editingId),{
-        theme,
-        text,
-        status
+        theme,text,status
       });
       editingId=null;
     }else{
       await addDoc(memosRef,{
-        theme,
-        text,
-        status,
+        theme,text,status,
         created:Date.now()
       });
     }
@@ -124,24 +147,23 @@ window.saveMemo = async () => {
     statusInput.value="未着手";
 
   }catch(e){
-    console.error(e);
-    alert("保存エラー: "+e.message);
+    alert("保存エラー："+e.message);
   }
 };
 
-// リアルタイム表示
 onSnapshot(memosRef,(snapshot)=>{
   memoList.innerHTML="";
   snapshot.forEach(docSnap=>{
     const data=docSnap.data();
     const div=document.createElement("div");
-    div.className="memo";
+    div.className="card";
     div.innerHTML=`
-      <strong>${data.theme}</strong><br>
-      ${data.text}<br>
-      <small>状態: ${data.status}</small><br>
-      <button onclick="editMemo('${docSnap.id}','${data.theme}','${data.text}','${data.status}')">編集</button>
-      <button onclick="deleteMemo('${docSnap.id}')">削除</button>
+      <div class="memoTitle">${data.theme}</div>
+      <div>${data.text}</div>
+      <div class="memoStatus">状態: ${data.status}</div>
+      <br>
+      <button class="editBtn" onclick="editMemo('${docSnap.id}','${data.theme}','${data.text}','${data.status}')">編集</button>
+      <button class="deleteBtn" onclick="deleteMemo('${docSnap.id}')">削除</button>
     `;
     memoList.appendChild(div);
   });
@@ -157,18 +179,13 @@ window.editMemo=(id,theme,text,status)=>{
   textInput.value=text;
   statusInput.value=status || "未着手";
 };
-
 </script>
 
-<!-- Service Worker -->
 <script>
-if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js")
-    .then(() => console.log("SW登録成功"))
-    .catch(err => console.log("SW登録失敗:", err));
+if("serviceWorker" in navigator){
+  navigator.serviceWorker.register("sw.js");
 }
 </script>
 
 </body>
 </html>
-
