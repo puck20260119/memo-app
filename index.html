@@ -24,10 +24,34 @@ h1{
 
 .card{
   background:#1e293b;
-  padding:15px;
-  border-radius:16px;
-  margin-bottom:15px;
-  box-shadow:0 4px 10px rgba(0,0,0,0.3);
+  padding:10px 14px;
+  border-radius:14px;
+  margin-bottom:10px;
+  box-shadow:0 3px 8px rgba(0,0,0,0.25);
+}
+
+.memoHeader{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  margin-bottom:4px;
+}
+
+.memoTitle{
+  font-size:16px;
+  font-weight:bold;
+}
+
+.memoButtons button{
+  margin-left:6px;
+  padding:4px 8px;
+  font-size:12px;
+}
+
+.memoStatus{
+  font-size:12px;
+  opacity:0.6;
+  margin-top:4px;
 }
 
 input,textarea,select{
@@ -41,27 +65,15 @@ input,textarea,select{
 }
 
 button{
-  padding:8px 12px;
   border:none;
   border-radius:8px;
   cursor:pointer;
-  margin-right:5px;
   font-weight:bold;
 }
 
 .saveBtn{ background:#22c55e; color:white; }
 .editBtn{ background:#3b82f6; color:white; }
 .deleteBtn{ background:#ef4444; color:white; }
-
-.memoTitle{
-  font-size:18px;
-  font-weight:bold;
-}
-
-.memoStatus{
-  font-size:12px;
-  opacity:0.7;
-}
 </style>
 </head>
 <body>
@@ -119,6 +131,13 @@ const memoList = document.getElementById("memoList");
 
 let editingId=null;
 
+// ⭐ 並び順ルール
+const statusOrder = {
+  "未着手": 0,
+  "進行中": 1,
+  "完了": 2
+};
+
 window.saveMemo=async()=>{
   try{
     const theme=themeInput.value.trim();
@@ -153,18 +172,46 @@ window.saveMemo=async()=>{
 
 onSnapshot(memosRef,(snapshot)=>{
   memoList.innerHTML="";
+
+  let memos=[];
+
   snapshot.forEach(docSnap=>{
-    const data=docSnap.data();
+    memos.push({
+      id:docSnap.id,
+      ...docSnap.data()
+    });
+  });
+
+  // ⭐ 並び替え（完了を下へ）
+  memos.sort((a,b)=>{
+    const statusDiff = statusOrder[a.status] - statusOrder[b.status];
+    if(statusDiff!==0) return statusDiff;
+    return b.created - a.created;
+  });
+
+  memos.forEach(data=>{
     const div=document.createElement("div");
     div.className="card";
+
     div.innerHTML=`
-      <div class="memoTitle">${data.theme}</div>
+      <div class="memoHeader">
+        <div class="memoTitle">${data.theme}</div>
+        <div class="memoButtons">
+          <button class="editBtn"
+            onclick="editMemo('${data.id}','${data.theme}','${data.text}','${data.status}')">
+            編集
+          </button>
+          <button class="deleteBtn"
+            onclick="deleteMemo('${data.id}')">
+            削除
+          </button>
+        </div>
+      </div>
+
       <div>${data.text}</div>
       <div class="memoStatus">状態: ${data.status}</div>
-      <br>
-      <button class="editBtn" onclick="editMemo('${docSnap.id}','${data.theme}','${data.text}','${data.status}')">編集</button>
-      <button class="deleteBtn" onclick="deleteMemo('${docSnap.id}')">削除</button>
     `;
+
     memoList.appendChild(div);
   });
 });
