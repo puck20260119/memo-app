@@ -245,38 +245,35 @@ window.editMemo=(id,theme,text,status)=>{
 </script>
 
 <script>
-const lockScreen=document.getElementById("lockScreen");
-const app=document.getElementById("app");
-const passwordInput=document.getElementById("passwordInput");
-const lockMessage=document.getElementById("lockMessage");
+const lockScreen = document.getElementById("lockScreen");
+const app = document.getElementById("app");
+const passwordInput = document.getElementById("passwordInput");
+const lockMessage = document.getElementById("lockMessage");
 
-const savedPassword=localStorage.getItem("memoPassword");
+// 🔒 固定パスワード
+const FIXED_PASSWORD = "1212";
 
-if(!savedPassword){
-  const newPass=prompt("初回パスワードを設定してください");
-  if(newPass){
-    localStorage.setItem("memoPassword",newPass);
-  }
-}
-
-window.unlock=()=>{
-  const saved=localStorage.getItem("memoPassword");
-  if(passwordInput.value===saved){
+window.unlock = () => {
+  if (passwordInput.value === FIXED_PASSWORD) {
     lockScreen.classList.add("hidden");
     app.classList.remove("hidden");
-  }else{
-    lockMessage.textContent="パスワードが違います";
+    passwordInput.value = "";
+    lockMessage.textContent = "";
+  } else {
+    lockMessage.textContent = "パスワードが違います";
   }
 };
 
-passwordInput.addEventListener("keypress",(e)=>{
-  if(e.key==="Enter")unlock();
+// Enterキーで解除
+passwordInput.addEventListener("keypress", (e) => {
+  if (e.key === "Enter") unlock();
 });
 
-if("serviceWorker" in navigator){
+if ("serviceWorker" in navigator) {
   navigator.serviceWorker.register("sw.js");
 }
 </script>
+
 
 </body>
 </html>
