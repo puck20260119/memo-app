@@ -2,29 +2,28 @@ body {
   font-family: sans-serif;
   background-color: #f9f9f9;
   padding: 24px;
+  margin: 0;
 }
 
 .container{
-  max-width:900px;
-  margin:0 auto;
+  max-width: 900px;
+  margin: 0 auto;
 }
 
 /* スマホ・タブレット */
 @media (max-width: 900px){
   body{
-    padding:10px;
+    padding: 10px;
   }
   .container{
-    max-width:100%;
+    max-width: 100%;
   }
 }
 
 h1 {
   font-size: 22px;
   margin-bottom: 12px;
-  
 }
-
 
 textarea {
   width: 100%;
@@ -33,25 +32,17 @@ textarea {
   padding: 12px;
   box-sizing: border-box;
 }
+
 button {
   margin-top: 12px;
   padding: 8px 16px;
   font-size: 14px;
 }
+
 ul {
   list-style: none;
   padding: 0;
   margin-bottom: 16px;
-}
-
-li {
-  padding: 6px 8px;
-  cursor: pointer;
-  font-size: 14px;
-}
-
-li:hover {
-  background-color: #e0e0e0;
 }
 
 li {
@@ -81,12 +72,6 @@ li:hover {
   align-items: center;
   gap: 6px;
   line-height: 1.2;
-}
-
-#memoList button {
-  padding: 2px 6px;
-  margin: 0;
-  font-size: 12px;
 }
 
 #memoList button {
