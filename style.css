@@ -12,11 +12,15 @@ body {
 
 /* スマホ・タブレット */
 @media (max-width: 900px){
+  textarea{
+    min-height: 55vh;   /* 画面高さの55% */
+  }
+}
   body{
     padding: 10px;
   }
   .container{
-    max-width: 100%;
+    max-width: 90%;
   }
 }
 
