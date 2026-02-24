@@ -17,11 +17,7 @@ h1 {
 
 textarea {
   width: 100%;
-  min-height: 80vh;
-  font-size: 16px;
-  padding: 12px;
-  box-sizing: border-box;
-  resize: vertical;
+  min-height: 80vh !important;
 }
 
 button {
