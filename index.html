@@ -9,9 +9,7 @@
 <meta name="theme-color" content="#0f172a">
 
 <style>
-*{
-  box-sizing:border-box;
-}
+*{ box-sizing:border-box; }
 
 body{
   margin:0;
@@ -22,6 +20,37 @@ body{
 }
 
 .hidden{ display:none; }
+
+#lockScreen{
+  position:fixed;
+  inset:0;
+  background:#0f172a;
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  flex-direction:column;
+  z-index:1000;
+}
+
+#lockScreen input{
+  width:250px;
+  padding:12px;
+  border-radius:10px;
+  border:none;
+  background:#334155;
+  color:white;
+  margin-bottom:10px;
+}
+
+#lockScreen button{
+  padding:8px 16px;
+  border:none;
+  border-radius:8px;
+  background:#22c55e;
+  color:white;
+  font-weight:bold;
+  cursor:pointer;
+}
 
 h1{ text-align:center; margin-bottom:20px; }
 
@@ -86,6 +115,16 @@ button{
 </head>
 <body>
 
+<!-- 🔒 ロック画面 -->
+<div id="lockScreen">
+  <h2>🔒 ロック解除</h2>
+  <input type="password" id="passwordInput" placeholder="パスワード">
+  <button id="unlockBtn">解除</button>
+  <small id="lockMessage"></small>
+</div>
+
+<div id="app" class="hidden">
+
 <h1>Memo App</h1>
 
 <div class="card">
@@ -102,6 +141,7 @@ button{
 </div>
 
 <div id="memoList"></div>
+</div>
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
@@ -130,14 +170,13 @@ const db = getFirestore(firebaseApp);
 enableIndexedDbPersistence(db).catch(()=>{});
 const memosRef = collection(db,"memos");
 
-const themeInput = document.getElementById("theme");
-const textInput = document.getElementById("text");
-const statusInput = document.getElementById("status");
-const memoList = document.getElementById("memoList");
+const themeInput=document.getElementById("theme");
+const textInput=document.getElementById("text");
+const statusInput=document.getElementById("status");
+const memoList=document.getElementById("memoList");
 
 let editingId=null;
-
-const statusOrder = { "未着手":0,"進行中":1,"完了":2 };
+const statusOrder={"未着手":0,"進行中":1,"完了":2};
 
 window.saveMemo=async()=>{
   const theme=themeInput.value.trim();
@@ -203,6 +242,34 @@ onSnapshot(memosRef,(snapshot)=>{
     });
 
     memoList.appendChild(div);
+  });
+});
+</script>
+
+<script>
+document.addEventListener("DOMContentLoaded",function(){
+  const lockScreen=document.getElementById("lockScreen");
+  const app=document.getElementById("app");
+  const passwordInput=document.getElementById("passwordInput");
+  const unlockBtn=document.getElementById("unlockBtn");
+  const lockMessage=document.getElementById("lockMessage");
+
+  const FIXED_PASSWORD="1212";
+
+  function unlock(){
+    if(passwordInput.value===FIXED_PASSWORD){
+      lockScreen.style.display="none";
+      app.classList.remove("hidden");
+      passwordInput.value="";
+      lockMessage.textContent="";
+    }else{
+      lockMessage.textContent="パスワードが違います";
+    }
+  }
+
+  unlockBtn.addEventListener("click",unlock);
+  passwordInput.addEventListener("keydown",(e)=>{
+    if(e.key==="Enter") unlock();
   });
 });
 </script>
